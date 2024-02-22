@@ -5,6 +5,8 @@ import easymidi from 'easymidi'
 import midinote from 'midi-note'
 import {writeFile} from 'fs';
 import {stringify} from 'csv-stringify'
+import keyboardjs from 'keyboardjs';
+import readline from 'readline'
 
 
 // Log
@@ -17,6 +19,8 @@ let currentMicroAmps = 0;
 let minRange = null;
 let maxRange = null;
 let rangeSpread = 3;
+
+
 
 
 SerialPort.list().then(ports => {
@@ -36,18 +40,32 @@ SerialPort.list().then(ports => {
     }
 
 
-    // Create a port
+    // Serial setup
     const port = new SerialPort({
         path: serialPortPath, //'/dev/cu.usbmodem1101'
         baudRate: 9600,
     })
 
     const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+
+    
+    // Keyboard, press 'u' to toggle logging 
+    readline.emitKeypressEvents(process.stdin);
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+
+    process.stdin.on('keypress', (chunk, key) => {
+        if (key && key.name == 'u') {
+            console.log('u pressed');
+            port.write('u');
+        }
+    });
+
     // const client = new Client('127.0.0.1', 3333);
 
+    // MIDI
     easymidi.getOutputs().forEach(output => console.log(output));
-
     const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae');
+
 
     // Interval for logging the data and adjusting the range
     setInterval(async () => {
