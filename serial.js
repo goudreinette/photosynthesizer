@@ -12,14 +12,14 @@ import readline from 'readline'
 // Log
 const logFilePath = `./log/${(new Date().toISOString())}.csv`;
 const log = [];
-const loggingInterval = 1000 * 5; // every 5 seconds
+const loggingInterval = 1000 * 20; // every 5 seconds
 let currentMicroAmps = 0;
 
 // Range (in microAmps)
 let minRange = null;
 let maxRange = null;
-let rangeSpread = 3;
-
+let rangeSpread = 6;
+const rangeInterval = 1000 * 60
 
 
 
@@ -49,15 +49,18 @@ SerialPort.list().then(ports => {
     const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
     
-    // Keyboard, press 'u' to toggle logging 
+    // Keyboard
     readline.emitKeypressEvents(process.stdin);
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
 
     process.stdin.on('keypress', (chunk, key) => {
+        // press 'u' to toggle logging 
         if (key && key.name == 'u') {
             console.log('u pressed');
             port.write('u');
         }
+
+        // c to exit
         if (key && key.name == 'c') {
             process.exit();
         }
@@ -73,8 +76,11 @@ SerialPort.list().then(ports => {
     // Interval for logging the data and adjusting the range
     setInterval(async () => {
         logData();
-        adjustRange();
     }, loggingInterval);
+
+    setInterval(async () => {
+        adjustRange();
+    }, rangeInterval);
 
     // Read the port data
     port.on("open", () => {
