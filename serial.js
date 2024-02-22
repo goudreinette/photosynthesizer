@@ -18,7 +18,7 @@ let currentMicroAmps = 0;
 // Range (in microAmps)
 let minRange = null;
 let maxRange = null;
-let rangeSpread = 6;
+let rangeSpread = 3;
 const rangeInterval = 1000 * 60
 
 
@@ -78,10 +78,6 @@ SerialPort.list().then(ports => {
         logData();
     }, loggingInterval);
 
-    setInterval(async () => {
-        adjustRange();
-    }, rangeInterval);
-
     // Read the port data
     port.on("open", () => {
         console.log('serial port open');
@@ -99,9 +95,7 @@ SerialPort.list().then(ports => {
             const dataAsNumber = Number(new Number(data / 1000).toFixed(2));
             currentMicroAmps = dataAsNumber;
 
-            if (minRange === null || maxRange === null) {
-                adjustRange();
-            }
+            adjustRange();
 
             console.log(dataAsNumber) // as milliAmps
 
@@ -149,10 +143,26 @@ function logData() {
 }
 
 function adjustRange() {
+    // If no range is set, set the range
+    if (minRange === null || maxRange === null) {
+        minRange = currentMicroAmps - rangeSpread;
+        maxRange = currentMicroAmps + rangeSpread;
+        console.log(`Initial range: ${minRange} - ${maxRange}`);
+        return;
+    }
+
     // Adjust the range
-    minRange = currentMicroAmps - rangeSpread;
-    maxRange = currentMicroAmps + rangeSpread;
-    console.log(`New range: ${minRange} - ${maxRange}`);
+    if (currentMicroAmps < minRange) {
+        minRange--;
+        maxRange--;
+        console.log(`New range: ${minRange} - ${maxRange}`);
+    }
+    if (currentMicroAmps > maxRange) {
+        minRange++;
+        maxRange++;
+        console.log(`New range: ${minRange} - ${maxRange}`);
+    }
+
 }
 
 
