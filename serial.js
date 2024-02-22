@@ -10,13 +10,13 @@ import {stringify} from 'csv-stringify'
 // Log
 const logFilePath = `./log/${(new Date().toISOString())}.csv`;
 const log = [];
-const loggingInterval = 1000 * 5;
+const loggingInterval = 1000 * 5; // every 5 seconds
 let currentMicroAmps = 0;
 
 // Range (in microAmps)
-const minRange = 94;
-const maxRange = 100000;
-
+let minRange = null;
+let maxRange = null;
+let rangeSpread = 3;
 
 
 SerialPort.list().then(ports => {
@@ -49,28 +49,11 @@ SerialPort.list().then(ports => {
 
     const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae');
 
-    // Interval for logging the data
+    // Interval for logging the data and adjusting the range
     setInterval(async () => {
-        console.log(`Current milliAmps: ${currentMicroAmps}`);
-        log.push({
-            timestamp: new Date().toISOString(), 
-            microAmps: currentMicroAmps.toFixed(2)
-        });
-
-
-        stringify(log, {
-            columns: ['timestamp', 'microAmps'],
-            header: true
-        }, function(err, data){
-            // console.log(err, data)
-            writeFile(logFilePath, data, () => {
-                console.log('logged', data);
-            });
-        });
-
-        
+        logData();
+        adjustRange();
     }, loggingInterval);
-
 
     // Read the port data
     port.on("open", () => {
@@ -86,10 +69,14 @@ SerialPort.list().then(ports => {
         if (i % 90 === 0) {
             // console.clear()
 
-            const dataAsNumber = new Number(data / 1000);
+            const dataAsNumber = Number(new Number(data / 1000).toFixed(2));
             currentMicroAmps = dataAsNumber;
 
-            // console.log(dataAsNumber) // as milliAmps
+            if (minRange === null || maxRange === null) {
+                adjustRange();
+            }
+
+            console.log(dataAsNumber) // as milliAmps
 
             let newNote = Math.round(map(dataAsNumber, minRange, maxRange, 24, 96));
 
@@ -107,7 +94,7 @@ SerialPort.list().then(ports => {
             lastNote = newNote;
 
             // client.send('/nA', data)
-            console.log(data);
+            // console.log(data);
             console.log(`sent note:`, newNote, midinote(newNote));
         }    
     });
@@ -115,6 +102,31 @@ SerialPort.list().then(ports => {
 });
 
 
+
+function logData() {
+    console.log(`Current milliAmps: ${currentMicroAmps}`);
+    log.push({
+        timestamp: new Date().toISOString(), 
+        microAmps: currentMicroAmps.toFixed(2)
+    });
+
+    stringify(log, {
+        columns: ['timestamp', 'microAmps'],
+        header: true
+    }, function (err, data){
+        // console.log(err, data)
+        writeFile(logFilePath, data, () => {
+            console.log('logged', data);
+        });
+    });
+}
+
+function adjustRange() {
+    // Adjust the range
+    minRange = currentMicroAmps - rangeSpread;
+    maxRange = currentMicroAmps + rangeSpread;
+    console.log(`New range: ${minRange} - ${maxRange}`);
+}
 
 
 /**
