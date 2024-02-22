@@ -58,6 +58,9 @@ SerialPort.list().then(ports => {
             console.log('u pressed');
             port.write('u');
         }
+        if (key && key.name == 'c') {
+            process.exit();
+        }
     });
 
     // const client = new Client('127.0.0.1', 3333);
