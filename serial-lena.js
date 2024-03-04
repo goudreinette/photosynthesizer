@@ -66,9 +66,7 @@ SerialPort.list().then(ports => {
         }
     });
 
-    // OSC
-    const oscClient = new Client('127.0.0.1', 3333);
-    
+    // const client = new Client('127.0.0.1', 3333);
 
     // MIDI
     easymidi.getOutputs().forEach(output => console.log(output));
@@ -101,7 +99,7 @@ SerialPort.list().then(ports => {
 
             console.log(dataAsNumber) // as milliAmps
 
-            // Note
+            
             let newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
 
             algaeOutput.send('noteon', {
@@ -120,10 +118,6 @@ SerialPort.list().then(ports => {
             // client.send('/nA', data)
             // console.log(data);
             console.log(`sent note:`, newNote, midinote(newNote));
-
-
-            // OSC
-            oscClient.send('/uA', map(dataAsNumber, minRange, maxRange, 0.001, .5));
 
             console.log(`Range: ${minRange} - ${currentMicroAmps} - ${maxRange}`);
         }    
@@ -171,6 +165,7 @@ function adjustRange() {
         maxRange++;
         console.log(`New range: ${minRange} - ${maxRange}`);
     }
+
 }
 
 
