@@ -138,7 +138,6 @@ SerialPort.list().then(ports => {
 
             console.log(`Range: ${minRange} - ${currentMicroAmps} - ${maxRange}`);
             console.log(`Note sent every ${noteSentEveryNValues} values. Press up or down to change.`);
-
         }    
     });
 
@@ -156,7 +155,7 @@ function logData() {
     stringify(log, {
         columns: ['timestamp', 'microAmps'],
         header: true
-    }, function (err, data){
+    }, (err, data) => {
         // console.log(err, data)
         writeFile(logFilePath, data, () => {
             console.log('logged', data);
