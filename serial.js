@@ -21,6 +21,9 @@ let maxRange = null;
 let rangeSpread = 3;
 const rangeInterval = 1000 * 60
 
+// Rate of notes sent
+let noteSentEveryNValues = 90
+
 
 
 SerialPort.list().then(ports => {
@@ -64,10 +67,18 @@ SerialPort.list().then(ports => {
         if (key && key.name == 'c') {
             process.exit();
         }
+
+        if (key && key.name == 'up') {
+            noteSentEveryNValues += 20
+        }
+    
+        if (key && key.name == 'down') {
+            noteSentEveryNValues -= 20
+        }
     });
 
     // OSC
-    const oscClient = new Client('127.0.0.1', 3333);
+    // const oscClient = new Client('127.0.0.1', 3333);
     
 
     // MIDI
@@ -91,7 +102,7 @@ SerialPort.list().then(ports => {
     parser.on('data', data => {
         i++;
         
-        if (i % 90 === 0) {
+        if (i % noteSentEveryNValues === 0) {
             console.clear()
 
             const dataAsNumber = Number(new Number(data / 1000).toFixed(2));
@@ -123,9 +134,10 @@ SerialPort.list().then(ports => {
 
 
             // OSC
-            oscClient.send('/uA', map(dataAsNumber, minRange, maxRange, 0.001, .5));
+            // oscClient.send('/uA', map(dataAsNumber, minRange, maxRange, 0.001, .5));
 
             console.log(`Range: ${minRange} - ${currentMicroAmps} - ${maxRange}`);
+            console.log(`Note sent every ${noteSentEveryNValues} values. Press up or down to change.`);
         }    
     });
 
