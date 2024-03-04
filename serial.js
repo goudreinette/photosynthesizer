@@ -19,7 +19,7 @@ let currentMicroAmps = 0;
 let minRange = null;
 let maxRange = null;
 let rangeSpread = 3;
-const rangeInterval = 1000 * 30
+const rangeInterval = 1000 * 60
 
 // Rate of notes sent
 let noteSentEveryNValues = 90
@@ -86,14 +86,10 @@ SerialPort.list().then(ports => {
     const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae');
 
 
-    // Intervals for logging the data and adjusting the range
+    // Interval for logging the data and adjusting the range
     setInterval(async () => {
         logData();
     }, loggingInterval);
-
-    setInterval(() => {
-        adjustRange();
-    }, rangeInterval);
 
     // Read the port data
     port.on("open", () => {
@@ -112,6 +108,7 @@ SerialPort.list().then(ports => {
             const dataAsNumber = Number(new Number(data / 1000).toFixed(2));
             currentMicroAmps = dataAsNumber;
 
+            adjustRange();
 
             console.log(dataAsNumber) // as milliAmps
 
@@ -141,6 +138,7 @@ SerialPort.list().then(ports => {
 
             console.log(`Range: ${minRange} - ${currentMicroAmps} - ${maxRange}`);
             console.log(`Note sent every ${noteSentEveryNValues} values. Press up or down to change.`);
+
         }    
     });
 
@@ -168,10 +166,12 @@ function logData() {
 
 function adjustRange() {
     // If no range is set, set the range
-    minRange = currentMicroAmps - rangeSpread;
-    maxRange = currentMicroAmps + rangeSpread;
-    console.log(`Initial range: ${minRange} - ${maxRange}`);
-    return;
+    // If it goes out of bounds, reset it too
+    if (minRange === null || maxRange === null || currentMicroAmps < minRange || currentMicroAmps > maxRange) {
+        minRange = currentMicroAmps - rangeSpread;
+        maxRange = currentMicroAmps + rangeSpread;
+        console.log(`New range: ${minRange} - ${maxRange}`);
+    }
 }
 
 
