@@ -3,8 +3,9 @@ import { ReadlineParser } from '@serialport/parser-readline'
 import { Client } from 'node-osc';
 import easymidi from 'easymidi'
 import midinote from 'midi-note'
-import { writeFile } from 'fs';
-import { stringify } from 'csv-stringify'
+import {writeFile} from 'fs';
+import {stringify} from 'csv-stringify'
+import keyboardjs from 'keyboardjs';
 import readline from 'readline'
 
 
@@ -13,15 +14,13 @@ const logFilePath = `./log/${(new Date().toISOString())}.csv`;
 const log = [];
 const loggingInterval = 1000 * 20; // every 20 seconds
 let currentMicroAmps = 0;
-let dataAsNumber = 0
 
 // Range (in microAmps)
 let minRange = null;
 let maxRange = null;
 let rangeSpread = 3;
+const rangeInterval = 1000 * 60
 
-// Rate of notes sent
-let noteSentEveryNValues = 90
 
 
 SerialPort.list().then(ports => {
@@ -29,8 +28,7 @@ SerialPort.list().then(ports => {
     let serialPortPath = '';
 
     ports.forEach(port => {
-        console.log(port.path)
-        if (port.manufacturer === 'LowPowerLab LLC' || port.path.includes('COM')) {
+        if (port.manufacturer === 'LowPowerLab LLC') {
             console.log(`Found CurrentRanger on ${port.path}!`);
             serialPortPath = port.path;
         }
@@ -50,7 +48,7 @@ SerialPort.list().then(ports => {
 
     const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
-
+    
     // Keyboard
     readline.emitKeypressEvents(process.stdin);
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
@@ -66,23 +64,13 @@ SerialPort.list().then(ports => {
         if (key && key.name == 'c') {
             process.exit();
         }
-
-        if (key && key.name == 'up') {
-            noteSentEveryNValues += 20
-        }
-
-        if (key && key.name == 'down') {
-            noteSentEveryNValues -= 20
-        }
     });
 
-
-    // OSC
-    const oscClient = new Client('127.0.0.1', 3333);
+    // const client = new Client('127.0.0.1', 3333);
 
     // MIDI
     easymidi.getOutputs().forEach(output => console.log(output));
-    const algaeOutput = new easymidi.Output('loopMIDI Port');
+    const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae');
 
 
     // Interval for logging the data and adjusting the range
@@ -96,36 +84,29 @@ SerialPort.list().then(ports => {
     });
 
     let lastNote = 0;
-    let newNote = 0;
     let i = 0;
-
-    // Printing interval
-    setInterval(() => {
-        console.clear()
-        console.log('Current value:', dataAsNumber) // as milliAmps
-        console.log(`sent note:`, newNote, midinote(newNote));
-        console.log('Range:', minRange, '-', currentMicroAmps, '-', maxRange);
-        console.log('Note sent every', noteSentEveryNValues, 'values. Press up or down to change.');
-        console.log(`Press u to start/stop the currentranger sending data.`);
-    }, 10)
 
     parser.on('data', data => {
         i++;
+        
+        if (i % 90 === 0) {
+            console.clear()
 
-        if (i % noteSentEveryNValues === 0) {
-            dataAsNumber = Number(new Number(data / 1000).toFixed(2));
+            const dataAsNumber = Number(new Number(data / 1000).toFixed(2));
             currentMicroAmps = dataAsNumber;
 
             adjustRange();
 
-            // Note
-            newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
+            console.log(dataAsNumber) // as milliAmps
+
+            
+            let newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
 
             algaeOutput.send('noteon', {
                 note: newNote,
                 velocity: 127,
             });
-
+            
             // Turn off last note
             algaeOutput.send('noteoff', {
                 note: lastNote,
@@ -134,8 +115,12 @@ SerialPort.list().then(ports => {
 
             lastNote = newNote;
 
-            oscClient.send('/nA', map(dataAsNumber, minRange, maxRange, 0.1, 1))
-        }
+            // client.send('/nA', data)
+            // console.log(data);
+            console.log(`sent note:`, newNote, midinote(newNote));
+
+            console.log(`Range: ${minRange} - ${currentMicroAmps} - ${maxRange}`);
+        }    
     });
 
 });
@@ -145,14 +130,14 @@ SerialPort.list().then(ports => {
 function logData() {
     console.log(`Current milliAmps: ${currentMicroAmps}`);
     log.push({
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString(), 
         microAmps: currentMicroAmps.toFixed(2)
     });
 
     stringify(log, {
         columns: ['timestamp', 'microAmps'],
         header: true
-    }, (err, data) => {
+    }, function (err, data){
         // console.log(err, data)
         writeFile(logFilePath, data, () => {
             console.log('logged', data);
@@ -162,12 +147,25 @@ function logData() {
 
 function adjustRange() {
     // If no range is set, set the range
-    // If the value goes out of bounds, reset it
-    if (minRange === null || maxRange === null || currentMicroAmps < minRange || currentMicroAmps > maxRange) {
+    if (minRange === null || maxRange === null) {
         minRange = currentMicroAmps - rangeSpread;
         maxRange = currentMicroAmps + rangeSpread;
+        console.log(`Initial range: ${minRange} - ${maxRange}`);
+        return;
+    }
+
+    // Adjust the range
+    if (currentMicroAmps < minRange) {
+        minRange--;
+        maxRange--;
         console.log(`New range: ${minRange} - ${maxRange}`);
     }
+    if (currentMicroAmps > maxRange) {
+        minRange++;
+        maxRange++;
+        console.log(`New range: ${minRange} - ${maxRange}`);
+    }
+
 }
 
 
