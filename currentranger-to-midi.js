@@ -24,34 +24,88 @@ let rangeSpread = 3;
 let noteSentEveryNValues = 90
 
 
-SerialPort.list().then(ports => {
-    // Find the serial port
-    let serialPortPath = '';
+// CurrentRangers
+let currentRangersFound = []
 
-    ports.forEach(port => {
-        console.log(port.path)
-        if (port.manufacturer === 'LowPowerLab LLC' || port.path.includes('COM')) {
-            console.log(`Found CurrentRanger on ${port.path}!`);
-            serialPortPath = port.path;
+
+// OSC
+const oscClient = new Client('127.0.0.1', 3333);
+
+// MIDI
+console.log('Midi outputs:')
+easymidi.getOutputs().forEach(output => console.log(output));
+const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae'); //new easymidi.Output('loopMIDI Port');
+console.log('')
+
+
+
+console.log('Searching for CurrentRangers...')
+SerialPort.list().then(ports => {
+    // Find all CurrentRangers
+    ports.forEach((p, portIndex) => {
+        console.log(p.path)
+        if (p.manufacturer === 'LowPowerLab LLC' || p.path.includes('COM')) {
+            console.log(`Found CurrentRanger on ${p.path}!`);
+            currentRangersFound.push(p)
+            
+
+            // Serial setup
+            const port = new SerialPort({
+                path: p.path, //'/dev/cu.usbmodem1101'
+                baudRate: 9600,
+            })
+
+            const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+
+
+            port.on("open", () => {
+                console.log(`Serial port ${p.path} open`);
+            });
+            
+
+            // Read incoming data
+            parser.on('data', data => {
+                i++;
+        
+                if (i % noteSentEveryNValues === 0) {
+                    dataAsNumber = Number(new Number(data / 1000).toFixed(2));
+                    currentMicroAmps = dataAsNumber;
+        
+                    adjustRange();
+        
+                    // Note
+                    newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
+        
+                    algaeOutput.send('noteon', {
+                        note: newNote,
+                        velocity: 127,
+                        channel: portIndex
+                    });
+        
+                    // Turn off last note
+                    algaeOutput.send('noteoff', {
+                        note: lastNote,
+                        velocity: 127,
+                        channel: portIndex
+                    });
+        
+                    lastNote = newNote;
+        
+                    oscClient.send(`/nA`, map(dataAsNumber, minRange, maxRange, 0.1, 1))
+                }
+            });
         }
     });
 
-    if (serialPortPath === '') {
+    if (currentRangersFound.length == 0) {
         console.log('No CurrentRanger found!');
         return;
     }
 
-
-    // Serial setup
-    const port = new SerialPort({
-        path: serialPortPath, //'/dev/cu.usbmodem1101'
-        baudRate: 9600,
-    })
-
-    const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+    
 
 
-    // Keyboard
+    // Keyboard controls
     readline.emitKeypressEvents(process.stdin);
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
 
@@ -77,12 +131,7 @@ SerialPort.list().then(ports => {
     });
 
 
-    // OSC
-    const oscClient = new Client('127.0.0.1', 3333);
-
-    // MIDI
-    easymidi.getOutputs().forEach(output => console.log(output));
-    const algaeOutput = new easymidi.Output('loopMIDI Port');
+    
 
 
     // Interval for logging the data and adjusting the range
@@ -90,10 +139,7 @@ SerialPort.list().then(ports => {
         logData();
     }, loggingInterval);
 
-    // Read the port data
-    port.on("open", () => {
-        console.log('serial port open');
-    });
+    
 
     let lastNote = 0;
     let newNote = 0;
@@ -101,43 +147,18 @@ SerialPort.list().then(ports => {
 
     // Printing interval
     setInterval(() => {
-        console.clear()
-        console.log('Current value:', dataAsNumber) // as milliAmps
-        console.log(`sent note:`, newNote, midinote(newNote));
-        console.log('Range:', minRange, '-', currentMicroAmps, '-', maxRange);
-        console.log('Note sent every', noteSentEveryNValues, 'values. Press up or down to change.');
-        console.log(`Press u to start/stop the currentranger sending data.`);
+        // console.clear()
+        // console.log('Current value:', dataAsNumber) // as milliAmps
+        // console.log(`sent note:`, newNote, midinote(newNote));
+        // console.log('Range:', minRange, '-', currentMicroAmps, '-', maxRange);
+        // console.log('Note sent every', noteSentEveryNValues, 'values. Press up or down to change.');
+        // console.log(`Press u to start/stop the currentranger sending data.`);
+        // console.log(``);
+        // console.log(`Connected CurrentRangers: [${currentRangersFound.length}]`);
+        // currentRangersFound.forEach(c => {
+        //     console.log(c.path)
+        // }) 
     }, 10)
-
-    parser.on('data', data => {
-        i++;
-
-        if (i % noteSentEveryNValues === 0) {
-            dataAsNumber = Number(new Number(data / 1000).toFixed(2));
-            currentMicroAmps = dataAsNumber;
-
-            adjustRange();
-
-            // Note
-            newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
-
-            algaeOutput.send('noteon', {
-                note: newNote,
-                velocity: 127,
-            });
-
-            // Turn off last note
-            algaeOutput.send('noteoff', {
-                note: lastNote,
-                velocity: 127,
-            });
-
-            lastNote = newNote;
-
-            oscClient.send('/nA', map(dataAsNumber, minRange, maxRange, 0.1, 1))
-        }
-    });
-
 });
 
 
