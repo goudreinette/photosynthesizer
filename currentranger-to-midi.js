@@ -11,8 +11,9 @@ import readline from 'readline'
 // Log
 const logFilePath = `./log/${(new Date().toISOString())}.csv`;
 const log = [];
-const loggingInterval = 1000 * 20; // every 20 seconds
+const loggingInterval = 5000; // every 5 seconds
 let currentMicroAmps = 0;
+let allCurrentMicroAmps = {}
 let dataAsNumber = 0
 
 // Range (in microAmps)
@@ -21,7 +22,7 @@ let maxRange = null;
 let rangeSpread = 3;
 
 // Rate of notes sent
-let noteSentEveryNValues = 90
+let noteSentEveryNValues = 100
 
 
 // CurrentRangers
@@ -38,15 +39,25 @@ const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae'); //new ea
 console.log('')
 
 
+let nonCurrentRangerDevicesCount = 0;
 
 console.log('Searching for CurrentRangers...')
 SerialPort.list().then(ports => {
     // Find all CurrentRangers
     ports.forEach((p, portIndex) => {
+        if (p.manufacturer !== 'LowPowerLab LLC') {
+            nonCurrentRangerDevicesCount++
+        }
+    })
+
+    ports.forEach((p, portIndex) => {
         console.log(p.path)
         if (p.manufacturer === 'LowPowerLab LLC' || p.path.includes('COM')) {
             console.log(`Found CurrentRanger on ${p.path}!`);
             currentRangersFound.push(p)
+
+            const rangerI = portIndex - nonCurrentRangerDevicesCount
+
             
 
             // Serial setup
@@ -68,30 +79,74 @@ SerialPort.list().then(ports => {
                 i++;
         
                 if (i % noteSentEveryNValues === 0) {
-                    dataAsNumber = Number(new Number(data / 1000).toFixed(2));
-                    currentMicroAmps = dataAsNumber;
-        
-                    adjustRange();
-        
-                    // Note
-                    newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
-        
-                    algaeOutput.send('noteon', {
-                        note: newNote,
-                        velocity: 127,
-                        channel: portIndex
+                    // dataAsNumber = Number(new Number(data / 1000).toFixed(2));
+                    // dataAsNumber = new Number(data / 1000);
+                    dataAsNumber = new Number(data);
+
+                    // console.log(currentMicroAmps)
+                    // currentMicroAmps = dataAsNumber;
+                    allCurrentMicroAmps[p.path] = {
+                        rangerI: `ranger-${rangerI}`,
+                        microAmps: data
+                    };
+
+                    log.push({
+                        timestamp: new Date().toISOString(),
+                        path: p.path,
+                        rangerI: `ranger-${rangerI}`,
+                        microAmps: dataAsNumber
                     });
         
-                    // Turn off last note
-                    algaeOutput.send('noteoff', {
-                        note: lastNote,
-                        velocity: 127,
-                        channel: portIndex
-                    });
+                    // adjustRange();
         
-                    lastNote = newNote;
+                    // // Note
+                    // // newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
+                    // newNote = map(dataAsNumber, minRange, maxRange, 0, 128);
         
-                    oscClient.send(`/nA`, map(dataAsNumber, minRange, maxRange, 0.1, 1))
+                    // algaeOutput.send('noteon', {
+                    //     note: newNote,
+                    //     velocity: 127,
+                    //     channel: portIndex
+                    // });
+        
+                    // // Turn off last note
+                    // algaeOutput.send('noteoff', {
+                    //     note: lastNote,
+                    //     velocity: 127,
+                    //     channel: portIndex
+                    // });
+        
+                    // lastNote = newNote;
+                    
+        
+                    oscClient.send(`/ranger-${rangerI}`, data)
+                    console.log(p.path, `/ranger-${rangerI}`, data)
+                }
+            });
+
+
+            process.stdin.on('keypress', (chunk, key) => {
+                // press 'u' to toggle logging 
+                if (key && key.name == 'u') {
+                    console.log('u pressed');
+                    port.write('u');
+                }
+                if (key && key.name == 'f') {
+                    console.log('u pressed');
+                    port.write('f');
+                }
+        
+                // c to exit
+                if (key && key.name == 'c') {
+                    process.exit();
+                }
+        
+                if (key && key.name == 'up') {
+                    noteSentEveryNValues += 20
+                }
+        
+                if (key && key.name == 'down') {
+                    noteSentEveryNValues -= 20
                 }
             });
         }
@@ -109,26 +164,7 @@ SerialPort.list().then(ports => {
     readline.emitKeypressEvents(process.stdin);
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
 
-    process.stdin.on('keypress', (chunk, key) => {
-        // press 'u' to toggle logging 
-        if (key && key.name == 'u') {
-            console.log('u pressed');
-            port.write('u');
-        }
-
-        // c to exit
-        if (key && key.name == 'c') {
-            process.exit();
-        }
-
-        if (key && key.name == 'up') {
-            noteSentEveryNValues += 20
-        }
-
-        if (key && key.name == 'down') {
-            noteSentEveryNValues -= 20
-        }
-    });
+   
 
 
     
@@ -146,32 +182,29 @@ SerialPort.list().then(ports => {
     let i = 0;
 
     // Printing interval
-    setInterval(() => {
-        // console.clear()
-        // console.log('Current value:', dataAsNumber) // as milliAmps
-        // console.log(`sent note:`, newNote, midinote(newNote));
-        // console.log('Range:', minRange, '-', currentMicroAmps, '-', maxRange);
-        // console.log('Note sent every', noteSentEveryNValues, 'values. Press up or down to change.');
-        // console.log(`Press u to start/stop the currentranger sending data.`);
-        // console.log(``);
-        // console.log(`Connected CurrentRangers: [${currentRangersFound.length}]`);
-        // currentRangersFound.forEach(c => {
-        //     console.log(c.path)
-        // }) 
-    }, 10)
+    // setInterval(() => {
+    //     console.clear()
+    //     console.log('Current value:', dataAsNumber) // as milliAmps
+    //     console.log('Current value:', dataAsNumber) // as milliAmps
+    //     console.log(`sent note:`, newNote, midinote(newNote));
+    //     console.log('Range:', minRange, '-', currentMicroAmps, '-', maxRange);
+    //     console.log('Note sent every', noteSentEveryNValues, 'values. Press up or down to change.');
+    //     console.log(`Press u to start/stop the currentranger sending data.`);
+    //     console.log(``);
+    //     console.log(`Connected CurrentRangers: [${currentRangersFound.length}]`);
+    //     currentRangersFound.forEach(c => {
+    //         console.log(c.path)
+    //     }) 
+    // }, 10)
 });
 
 
 
 function logData() {
     console.log(`Current milliAmps: ${currentMicroAmps}`);
-    log.push({
-        timestamp: new Date().toISOString(),
-        microAmps: currentMicroAmps.toFixed(2)
-    });
 
     stringify(log, {
-        columns: ['timestamp', 'microAmps'],
+        columns: ['timestamp', 'path', 'rangerI', 'microAmps'],
         header: true
     }, (err, data) => {
         // console.log(err, data)
