@@ -55,109 +55,114 @@ SerialPort.list().then(ports => {
         if (p.manufacturer === 'LowPowerLab LLC' || p.path.includes('COM')) {
             console.log(`Found CurrentRanger on ${p.path}!`);
             currentRangersFound.push(p)
-
-            const rangerI = portIndex - nonCurrentRangerDevicesCount
-
-            
-
-            // Serial setup
-            const port = new SerialPort({
-                path: p.path, //'/dev/cu.usbmodem1101'
-                baudRate: 9600,
-            })
-
-            const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
-
-
-            port.on("open", () => {
-                console.log(`Serial port ${p.path} open`);
-            });
-            
-
-            // Read incoming data
-            parser.on('data', data => {
-                i++;
-        
-                if (i % noteSentEveryNValues === 0) {
-                    // dataAsNumber = Number(new Number(data / 1000).toFixed(2));
-                    // dataAsNumber = new Number(data / 1000);
-                    dataAsNumber = new Number(data);
-
-                    // console.log(currentMicroAmps)
-                    // currentMicroAmps = dataAsNumber;
-                    allCurrentMicroAmps[p.path] = {
-                        rangerI: `ranger-${rangerI}`,
-                        microAmps: data
-                    };
-
-                    log.push({
-                        timestamp: new Date().toISOString(),
-                        path: p.path,
-                        rangerI: `ranger-${rangerI}`,
-                        microAmps: dataAsNumber
-                    });
-        
-                    // adjustRange();
-        
-                    // // Note
-                    // // newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
-                    // newNote = map(dataAsNumber, minRange, maxRange, 0, 128);
-        
-                    // algaeOutput.send('noteon', {
-                    //     note: newNote,
-                    //     velocity: 127,
-                    //     channel: portIndex
-                    // });
-        
-                    // // Turn off last note
-                    // algaeOutput.send('noteoff', {
-                    //     note: lastNote,
-                    //     velocity: 127,
-                    //     channel: portIndex
-                    // });
-        
-                    // lastNote = newNote;
-                    
-        
-                    oscClient.send(`/ranger-${rangerI}`, data)
-                    console.log(p.path, `/ranger-${rangerI}`, data)
-                }
-            });
-
-
-            process.stdin.on('keypress', (chunk, key) => {
-                // press 'u' to toggle logging 
-                if (key && key.name == 'u') {
-                    console.log('u pressed');
-                    port.write('u');
-                }
-                if (key && key.name == 'f') {
-                    console.log('u pressed');
-                    port.write('f');
-                }
-        
-                // c to exit
-                if (key && key.name == 'c') {
-                    process.exit();
-                }
-        
-                if (key && key.name == 'up') {
-                    noteSentEveryNValues += 20
-                }
-        
-                if (key && key.name == 'down') {
-                    noteSentEveryNValues -= 20
-                }
-            });
         }
     });
+
+    console.log(currentRangersFound)
 
     if (currentRangersFound.length == 0) {
         console.log('No CurrentRanger found!');
         return;
+    } else {
+        console.log(`Found ${currentRangersFound.length} CurrentRangers`)
     }
 
+    currentRangersFound.forEach((p, rangerI) => {
+        console.log(rangerI)
+        // Serial setup
+        const port = new SerialPort({
+            path: p.path, //'/dev/cu.usbmodem1101'
+            baudRate: 9600,
+        })
+
+        const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+
+
+        port.on("open", () => {
+            console.log(`Serial port ${p.path} of ranger-${rangerI} open`);
+        });
+        
+
+        // Read incoming data
+        parser.on('data', data => {
+            i++;
     
+            if (i % noteSentEveryNValues === 0) {
+                // dataAsNumber = Number(new Number(data / 1000).toFixed(2));
+                // dataAsNumber = new Number(data / 1000);
+                // dataAsNumber = new Number(data);
+                dataAsNumber = new Number(data * 1_000_000).toFixed(4);
+
+
+                // console.log(new Number(data * 1000))
+
+                // console.log(currentMicroAmps)
+                // currentMicroAmps = dataAsNumber;
+                allCurrentMicroAmps[p.path] = {
+                    rangerI: `ranger-${rangerI}`,
+                    microAmps: data
+                };
+
+                // log.push({
+                //     timestamp: new Date().toISOString(),
+                //     path: p.path,
+                //     rangerI: `ranger-${rangerI}`,
+                //     microAmps: dataAsNumber
+                // });
+    
+                // adjustRange();
+    
+                // // Note
+                // // newNote = Math.round(map(dataAsNumber, minRange, maxRange, 0, 128));
+                // newNote = map(dataAsNumber, minRange, maxRange, 0, 128);
+    
+                // algaeOutput.send('noteon', {
+                //     note: newNote,
+                //     velocity: 127,
+                //     channel: portIndex
+                // });
+    
+                // // Turn off last note
+                // algaeOutput.send('noteoff', {
+                //     note: lastNote,
+                //     velocity: 127,
+                //     channel: portIndex
+                // });
+    
+                // lastNote = newNote;
+                
+    
+                oscClient.send(`/ranger-${rangerI}`, dataAsNumber)
+                console.log(p.path, `/ranger-${rangerI}`, dataAsNumber)
+            }
+        });
+
+
+        process.stdin.on('keypress', (chunk, key) => {
+            // press 'u' to toggle logging 
+            if (key && key.name == 'u') {
+                console.log('u pressed');
+                port.write('u');
+            }
+            if (key && key.name == 'f') {
+                console.log('u pressed');
+                port.write('f');
+            }
+    
+            // c to exit
+            if (key && key.name == 'c') {
+                process.exit();
+            }
+    
+            if (key && key.name == 'up') {
+                noteSentEveryNValues += 20
+            }
+    
+            if (key && key.name == 'down') {
+                noteSentEveryNValues -= 20
+            }
+        });
+    })
 
 
     // Keyboard controls

@@ -1,4 +1,7 @@
 node_modules/
-log/*
+log/
+log 2/
 
 .DS_Store
+
+bun.lockb
