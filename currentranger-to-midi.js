@@ -8,6 +8,8 @@ import { stringify } from 'csv-stringify'
 import readline from 'readline'
 
 
+
+// https://serialport.io/docs/bin-list
 // Log
 const logFilePath = `./log/${(new Date().toISOString())}.csv`;
 const log = [];
@@ -67,8 +69,11 @@ SerialPort.list().then(ports => {
         console.log(`Found ${currentRangersFound.length} CurrentRangers`)
     }
 
-    currentRangersFound.forEach((p, rangerI) => {
+    currentRangersFound.forEach((p, _rangerI) => {
+        const rangerI = p.serialNumber.slice(0,4)
         console.log(rangerI)
+
+
         // Serial setup
         const port = new SerialPort({
             path: p.path, //'/dev/cu.usbmodem1101'
@@ -91,17 +96,18 @@ SerialPort.list().then(ports => {
                 // dataAsNumber = Number(new Number(data / 1000).toFixed(2));
                 // dataAsNumber = new Number(data / 1000);
                 // dataAsNumber = new Number(data);
-                dataAsNumber = new Number(data * 1_000_000).toFixed(4);
+                // dataAsNumber = new Number(data * 1_000_000).toFixed(4);
+                dataAsNumber = new Number(data).toFixed(4);
 
 
                 // console.log(new Number(data * 1000))
 
                 // console.log(currentMicroAmps)
                 // currentMicroAmps = dataAsNumber;
-                allCurrentMicroAmps[p.path] = {
-                    rangerI: `ranger-${rangerI}`,
-                    microAmps: data
-                };
+                // allCurrentMicroAmps[p.path] = {
+                //     rangerI: `ranger-${rangerI}`,
+                //     microAmps: data
+                // };
 
                 // log.push({
                 //     timestamp: new Date().toISOString(),
@@ -176,9 +182,9 @@ SerialPort.list().then(ports => {
 
 
     // Interval for logging the data and adjusting the range
-    setInterval(async () => {
-        logData();
-    }, loggingInterval);
+    // setInterval(async () => {
+    //     logData();
+    // }, loggingInterval);
 
     
 
