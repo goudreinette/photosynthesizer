@@ -1,24 +1,21 @@
 {
-  "name": "photosynthesizer",
+  "name": "lena",
   "version": "1.0.0",
-  "description": "Repository for all code used in the project Photosynthesizer by Lena Kuzmich.",
-  "main": "currentranger-to-midi.js",
-  "dependencies": {
-    "easymidi": "^3.1.0",
-    "node-osc": "^9.1.7",
-    "serialport": "^13.0.0"
-  },
+  "description": "",
+  "main": "serial.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/goudreinette/photosynthesizer.git"
-  },
+  "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/goudreinette/photosynthesizer/issues"
+  "dependencies": {
+    "csv-stringify": "^6.4.5",
+    "easymidi": "^3.1.0",
+    "keyboardjs": "^2.7.0",
+    "midi-note": "^1.0.0",
+    "node-osc": "^9.1.0",
+    "serialport": "^12.0.0"
   },
-  "homepage": "https://github.com/goudreinette/photosynthesizer#readme"
+  "type": "module"
 }

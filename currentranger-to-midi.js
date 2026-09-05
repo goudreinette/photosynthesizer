@@ -2,7 +2,7 @@ import { SerialPort } from 'serialport'
 import { ReadlineParser } from '@serialport/parser-readline'
 import { Client } from 'node-osc';
 import easymidi from 'easymidi'
-import midinote from 'midi-note'
+// import midinote from 'midi-note'
 import { writeFile } from 'fs';
 import { stringify } from 'csv-stringify'
 import readline from 'readline'
@@ -37,7 +37,7 @@ const oscClient = new Client('127.0.0.1', 3333);
 // MIDI
 console.log('Midi outputs:')
 easymidi.getOutputs().forEach(output => console.log(output));
-const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae'); //new easymidi.Output('loopMIDI Port');
+// const algaeOutput = new easymidi.Output('IAC-besturingsbestand Algae'); //new easymidi.Output('loopMIDI Port');
 console.log('')
 
 
